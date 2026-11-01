@@ -112,8 +112,17 @@ class VulnDeduplicator:
         """
 
         # --- vuln_id ---
-        vuln_id = finding.get("cve_id") or finding.get("vuln_id") or finding.get("vulnerability_id") or ""
-
+        # HybridFinding uses `finding_id` (not `vuln_id` / `cve_id`) as its
+        # unique identifier. Without this fallback, every HybridFinding keys
+        # to vuln_id="" and the deduplicator collapses all findings into one.
+        vuln_id = (
+            finding.get("cve_id")
+            or finding.get("vuln_id")
+            or finding.get("vulnerability_id")
+            or finding.get("finding_id")
+            or finding.get("id")
+            or ""
+        )
         # --- package name ---
         pkg_name = finding.get("package_name") or finding.get("pkg_name") or ""
 
@@ -130,6 +139,13 @@ class VulnDeduplicator:
         rule_id = finding.get("rule_id") or finding.get("check_id") or ""
 
         # Build the key respecting the strategy
+        # Safety net: if we still have no discriminator, hash the finding so
+        # distinct findings never share a key. A silent 99% collapse is far
+        # worse than a missing cross-scanner merge.
+        if not vuln_id:
+            vuln_id = hashlib.sha256(
+                str(sorted(finding.items())).encode("utf-8")
+            ).hexdigest()[:16]
         if strategy == "relaxed":
             return DeduplicationKey(vuln_id=vuln_id)
         if strategy == "standard":
@@ -163,6 +179,11 @@ class VulnDeduplicator:
         if finding.get("cve_id") or finding.get("vuln_id") or finding.get("vulnerability_id"):
             return "standard"
         if finding.get("rule_id") or finding.get("check_id"):
+            return "strict"
+        # `finding_id` is the unique identifier used by HybridFinding objects.
+        # Treat it like a rule_id so we don't fall through to "relaxed" (which
+        # keys on vuln_id alone and would collapse findings with empty vuln_id).
+        if finding.get("finding_id") or finding.get("id"):
             return "strict"
         return "relaxed"
 
