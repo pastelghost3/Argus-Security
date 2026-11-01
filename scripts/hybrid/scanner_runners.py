@@ -197,6 +197,33 @@ def run_checkov(scanner: Any, target_path: str, logger: logging.Logger) -> list[
         return findings
 
     return run_scanner_guarded("Checkov", _scan, logger)
+def run_workflow_hardening(scanner: Any, target_path: str, logger: logging.Logger) -> list[HybridFinding]:
+    """Run CI/CD workflow hardening scan and convert to HybridFinding format"""
+
+    def _scan() -> list[HybridFinding]:
+        findings: list[HybridFinding] = []
+        wf_result = scanner.scan_filesystem(target_path)
+        for wf_finding in wf_result.findings:
+            findings.append(
+                HybridFinding(
+                    finding_id=f"workflow-hardening-{wf_finding.rule_id}-{wf_finding.file_path}",
+                    source_tool="workflow-hardening",
+                    severity=normalize_severity(wf_finding.severity),
+                    category="security",
+                    title=wf_finding.rule_id.replace("-", " ").title(),
+                    description=wf_finding.message,
+                    file_path=wf_finding.file_path,
+                    line_number=wf_finding.line if wf_finding.line else None,
+                    cwe_id=wf_finding.cwe,
+                    references=wf_finding.references or [],
+                    confidence=0.95,
+                    llm_enriched=False,
+                )
+            )
+        return findings
+
+    return run_scanner_guarded("Workflow Hardening", _scan, logger)
+
 
 
 def run_api_security(scanner: Any, target_path: str, logger: logging.Logger) -> list[HybridFinding]:

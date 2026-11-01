@@ -70,6 +70,7 @@ def run_phase1_scanning(
         ),
         ("Trivy", getattr(analyzer, "enable_trivy", False), getattr(analyzer, "trivy_scanner", None) is not None),
         ("Checkov", getattr(analyzer, "enable_checkov", False), getattr(analyzer, "checkov_scanner", None) is not None),
+        ("WorkflowHardening", getattr(analyzer, "enable_workflow_hardening", False), getattr(analyzer, "workflow_hardening_scanner", None) is not None),
         (
             "API-Security",
             getattr(analyzer, "enable_api_security", False),
@@ -204,6 +205,20 @@ def run_phase1_scanning(
             logger.error("   Checkov scan failed: %s", e)
             logger.info("   Continuing with other scanners...")
             scanner_health["Checkov"] = "failed"
+
+
+    # --- Workflow Hardening ---
+    if analyzer.enable_workflow_hardening and getattr(analyzer, "workflow_hardening_scanner", None):
+        try:
+            logger.info("   Running CI/CD workflow hardening scanner...")
+            wf_findings = analyzer._run_workflow_hardening(target_path)
+            all_findings.extend(wf_findings)
+            logger.info("   Workflow Hardening: %d CI/CD issues", len(wf_findings))
+            scanner_health["WorkflowHardening"] = f"ran({len(wf_findings)})" if wf_findings else "clean"
+        except Exception as e:
+            logger.error("   Workflow hardening scan failed: %s", e)
+            logger.info("   Continuing with other scanners...")
+            scanner_health["WorkflowHardening"] = "failed"
 
     # --- API Security ---
     if analyzer.enable_api_security and analyzer.api_security_scanner:

@@ -94,6 +94,7 @@ class ScannerRegistry:
                 "semgrep": ("semgrep_scanner", "SemgrepScanner"),
                 "trivy": ("trivy_scanner", "TrivyScanner"),
                 "checkov": ("checkov_scanner", "CheckovScanner"),
+                "workflow-hardening": ("workflow_hardening_scanner", "WorkflowHardeningScanner"),
                 "api-security": ("api_security_scanner", "APISecurityScanner"),
                 "dast": ("dast_scanner", "DASTScanner"),
                 "supply-chain": ("supply_chain_analyzer", "SupplyChainAnalyzer"),

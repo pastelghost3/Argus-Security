@@ -68,8 +68,15 @@ def main():
         "--enable-trivy", action=argparse.BooleanOptionalAction, default=None, help="Enable Trivy CVE scanning"
     )
     parser.add_argument(
-        "--enable-checkov", action=argparse.BooleanOptionalAction, default=None, help="Enable Checkov IaC scanning"
+        "--enable-checkov", action=argparse.BooleanOptionalAction, default=None, help="Enable Checkov IaC scanning")
+
+    parser.add_argument(
+        "--enable-workflow-hardening",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable CI/CD workflow hardening scan (pinned actions, pwn-request, permissions)",
     )
+    
     parser.add_argument(
         "--enable-trufflehog",
         action=argparse.BooleanOptionalAction,
@@ -240,6 +247,9 @@ def main():
     enable_semgrep = _resolve_flag(args.enable_semgrep, "ENABLE_SEMGREP", "enable_semgrep")
     enable_trivy = _resolve_flag(args.enable_trivy, "ENABLE_TRIVY", "enable_trivy")
     enable_checkov = _resolve_flag(args.enable_checkov, "ENABLE_CHECKOV", "enable_checkov")
+    enable_workflow_hardening = _resolve_flag(
+        args.enable_workflow_hardening, "ENABLE_WORKFLOW_HARDENING", "enable_workflow_hardening"
+    )
     enable_trufflehog = _resolve_flag(args.enable_trufflehog, "ENABLE_TRUFFLEHOG", "enable_trufflehog")
     enable_gitleaks = _resolve_flag(args.enable_gitleaks, "ENABLE_GITLEAKS", "enable_gitleaks")
     enable_api_security = _resolve_flag(args.enable_api_security, "ENABLE_API_SECURITY", "enable_api_security")
@@ -357,6 +367,7 @@ def main():
             enable_gitleaks=enable_gitleaks,
             enable_trivy=enable_trivy,
             enable_checkov=enable_checkov,
+            enable_workflow_hardening=enable_workflow_hardening,
             enable_api_security=enable_api_security,
             enable_dast=enable_dast,
             enable_supply_chain=enable_supply_chain,
