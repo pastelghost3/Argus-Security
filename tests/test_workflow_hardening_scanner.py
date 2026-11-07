@@ -114,12 +114,57 @@ def test_no_workflows_is_empty(tmp_path):
     assert result.files_scanned == 0
     assert result.total_findings == 0
 
+def test_multiple_unpinned_in_same_file_have_distinct_lines(tmp_path):
+    """Two unpinned actions in one file must produce two findings with distinct lines."""
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+""",
+    )
+    result = WorkflowHardeningScanner().scan_filesystem(str(tmp_path))
+    unpinned = [f for f in result.findings if f.rule_id == "unpinned-action"]
+    assert len(unpinned) == 2, f"Expected 2 findings, got {len(unpinned)}"
+    lines = [f.line for f in unpinned]
+    assert all(ln > 0 for ln in lines), f"Some lines are 0: {lines}"
+    assert len(set(lines)) == 2, f"Lines are not distinct: {lines}"
+
+
 
 def test_parse_error_reported(tmp_path):
     _write_workflow(tmp_path, "bad.yml", "on: [push\n  bad: yaml: here")
     result = WorkflowHardeningScanner().scan_filesystem(str(tmp_path))
     assert any(f.rule_id == "workflow-parse-error" for f in result.findings)
 
+def test_same_line_different_job_have_distinct_findings(tmp_path):
+    """YAML anchors can place the same 'uses:' text on multiple jobs at the same physical line."""
+    _write_workflow(
+        tmp_path,
+        "ci.yml",
+        """
+on: [push]
+jobs:
+  a:
+    runs-on: ubuntu-latest
+    steps: &common-steps
+      - uses: actions/checkout@v4
+  b:
+    runs-on: ubuntu-latest
+    steps: *common-steps
+""",
+    )
+    result = WorkflowHardeningScanner().scan_filesystem(str(tmp_path))
+    unpinned = [f for f in result.findings if f.rule_id == "unpinned-action"]
+    assert len(unpinned) == 2, f"Expected 2 findings, got {len(unpinned)}"
+    assert unpinned[0].line == unpinned[1].line
+    assert {f.job_name for f in unpinned} == {"a", "b"}
 
 def test_normalizer_produces_findings(tmp_path, monkeypatch):
     from scripts.normalizer import base as base_mod

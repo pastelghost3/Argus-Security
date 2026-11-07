@@ -263,6 +263,8 @@ class WorkflowHardeningScanner:
             if not isinstance(steps, list):
                 continue
 
+            step_occurrences: dict[str, int] = {}
+
             for idx, step in enumerate(steps):
                 if not isinstance(step, dict):
                     continue
@@ -274,10 +276,22 @@ class WorkflowHardeningScanner:
                         triggers=triggers,
                         rel_path=str(rel),
                         raw_text=text,
+                        occurrences=step_occurrences,
                     )
                 )
 
         return findings
+
+    @staticmethod
+
+    def _find_line(text: str, needle: str, occurrence: int = 0) -> int:
+        """Return the 1-based line number of the Nth occurrence of `needle`."""
+        pos = -1
+        for _ in range(occurrence + 1):
+            pos = text.find(needle, pos + 1)
+            if pos < 0:
+                return 0
+        return text.count("\n", 0, pos) + 1
 
     def _check_step(
         self,
@@ -287,8 +301,10 @@ class WorkflowHardeningScanner:
         triggers: dict,
         rel_path: str,
         raw_text: str,
+        occurrences: dict[str, int] | None = None,
     ) -> list[WorkflowFinding]:
         out: list[WorkflowFinding] = []
+        occurrences = occurrences or {}
         uses = step.get("uses")
         run = step.get("run")
 
@@ -296,9 +312,15 @@ class WorkflowHardeningScanner:
         if isinstance(uses, str) and "@" in uses:
             ref = uses.rsplit("@", 1)[1]
             if not _SHA_RE.match(ref):
+
+                snippet = f"uses: {uses}"
+                occ = occurrences.get(snippet, 0)
+                occurrences[snippet] = occ + 1
+                line = self._find_line(raw_text, snippet, occ)
                 out.append(
                     WorkflowFinding(
                         rule_id="unpinned-action",
+                        line=line,
                         severity="high",
                         message=(
                             f"Action '{uses}' in job '{job_name}' is not pinned to a full 40-char commit SHA. "
@@ -321,9 +343,14 @@ class WorkflowHardeningScanner:
                 with_block = step.get("with") or {}
                 ref = str(with_block.get("ref", ""))
                 if "head.sha" in ref or "head.ref" in ref:
+                    snippet = f"uses: {uses}"
+                    occ = occurrences.get(snippet, 0)
+                    occurrences[snippet] = occ + 1
+                    line = self._find_line(raw_text, snippet, occ)
                     out.append(
                         WorkflowFinding(
                             rule_id="pwn-request",
+                            line=line,
                             severity="critical",
                             message=(
                                 f"Job '{job_name}' uses `pull_request_target` and checks out "
@@ -340,13 +367,19 @@ class WorkflowHardeningScanner:
                         )
                     )
 
+
         # 3. Script injection via untrusted expressions in run:
         if isinstance(run, str):
             for m in _UNTRUSTED_EXPR_RE.finditer(run):
                 expr = m.group(0)
+                snippet = "run:"
+                occ = occurrences.get(snippet, 0)
+                occurrences[snippet] = occ + 1
+                line = self._find_line(raw_text, snippet, occ)
                 out.append(
                     WorkflowFinding(
                         rule_id="script-injection",
+                        line=line,
                         severity="high",
                         message=(
                             f"Untrusted expression '{expr}' interpolated directly into `run:` "

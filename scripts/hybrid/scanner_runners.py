@@ -206,7 +206,7 @@ def run_workflow_hardening(scanner: Any, target_path: str, logger: logging.Logge
         for wf_finding in wf_result.findings:
             findings.append(
                 HybridFinding(
-                    finding_id=f"workflow-hardening-{wf_finding.rule_id}-{wf_finding.file_path}",
+                    finding_id=f"workflow-hardening-{wf_finding.rule_id}-{wf_finding.file_path}-{wf_finding.job_name}-{wf_finding.step_index}-{wf_finding.line or 0}",
                     source_tool="workflow-hardening",
                     severity=normalize_severity(wf_finding.severity),
                     category="security",
