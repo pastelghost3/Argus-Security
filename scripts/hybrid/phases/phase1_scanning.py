@@ -71,6 +71,7 @@ def run_phase1_scanning(
         ("Trivy", getattr(analyzer, "enable_trivy", False), getattr(analyzer, "trivy_scanner", None) is not None),
         ("Checkov", getattr(analyzer, "enable_checkov", False), getattr(analyzer, "checkov_scanner", None) is not None),
         ("WorkflowHardening", getattr(analyzer, "enable_workflow_hardening", False), getattr(analyzer, "workflow_hardening_scanner", None) is not None),
+        ("AgentConfig", getattr(analyzer, "enable_agent_config", False), getattr(analyzer, "agent_config_scanner", None) is not None),
         (
             "API-Security",
             getattr(analyzer, "enable_api_security", False),
@@ -219,6 +220,20 @@ def run_phase1_scanning(
             logger.error("   Workflow hardening scan failed: %s", e)
             logger.info("   Continuing with other scanners...")
             scanner_health["WorkflowHardening"] = "failed"
+
+
+    # --- Agent Config ---
+    if analyzer.enable_agent_config and getattr(analyzer, "agent_config_scanner", None):
+        try:
+            logger.info("   Running agent config secret scanner...")
+            cfg_findings = analyzer._run_agent_config(target_path)
+            all_findings.extend(cfg_findings)
+            logger.info("   Agent Config: %d secrets in agent config files", len(cfg_findings))
+            scanner_health["AgentConfig"] = f"ran({len(cfg_findings)})" if cfg_findings else "clean"
+        except Exception as e:
+            logger.error("   Agent config scan failed: %s", e)
+            logger.info("   Continuing with other scanners...")
+            scanner_health["AgentConfig"] = "failed"
 
     # --- API Security ---
     if analyzer.enable_api_security and analyzer.api_security_scanner:

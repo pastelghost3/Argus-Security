@@ -224,6 +224,33 @@ def run_workflow_hardening(scanner: Any, target_path: str, logger: logging.Logge
 
     return run_scanner_guarded("Workflow Hardening", _scan, logger)
 
+def run_agent_config(scanner: Any, target_path: str, logger: logging.Logger) -> list[HybridFinding]:
+    """Run agent config secret scan and convert to HybridFinding format"""
+
+    def _scan() -> list[HybridFinding]:
+        findings: list[HybridFinding] = []
+        cfg_result = scanner.scan_filesystem(target_path)
+        for cfg_finding in cfg_result.findings:
+            findings.append(
+                HybridFinding(
+                    finding_id=f"agent-config-{cfg_finding.rule_id}-{cfg_finding.file_path}-{cfg_finding.rule_index}",
+                    source_tool="agent-config",
+                    severity=normalize_severity(cfg_finding.severity),
+                    category="security",
+                    title="Agent Config Secret" if cfg_finding.rule_id == "agent-config-secret" else "Agent Config Parse Error",
+                    description=cfg_finding.message,
+                    file_path=cfg_finding.file_path,
+                    line_number=None,
+                    cwe_id=cfg_finding.cwe,
+                    references=cfg_finding.references or [],
+                    confidence=0.95,
+                    llm_enriched=False,
+                )
+            )
+        return findings
+
+    return run_scanner_guarded("Agent Config", _scan, logger)
+
 
 
 def run_api_security(scanner: Any, target_path: str, logger: logging.Logger) -> list[HybridFinding]:

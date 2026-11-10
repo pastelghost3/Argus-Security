@@ -95,6 +95,7 @@ class ScannerRegistry:
                 "trivy": ("trivy_scanner", "TrivyScanner"),
                 "checkov": ("checkov_scanner", "CheckovScanner"),
                 "workflow-hardening": ("workflow_hardening_scanner", "WorkflowHardeningScanner"),
+                "agent-config": ("agent_config_scanner", "AgentConfigScanner"),
                 "api-security": ("api_security_scanner", "APISecurityScanner"),
                 "dast": ("dast_scanner", "DASTScanner"),
                 "supply-chain": ("supply_chain_analyzer", "SupplyChainAnalyzer"),

@@ -251,6 +251,7 @@ class HybridSecurityAnalyzer:
         enable_trivy: bool = True,
         enable_checkov: bool = True,
         enable_workflow_hardening: bool = True,
+        enable_agent_config: bool = True,
         enable_api_security: bool = True,
         enable_dast: bool = True,
         enable_supply_chain: bool = True,
@@ -308,6 +309,7 @@ class HybridSecurityAnalyzer:
         self.enable_trivy = enable_trivy
         self.enable_checkov = enable_checkov
         self.enable_workflow_hardening = enable_workflow_hardening
+        self.enable_agent_config = enable_agent_config
         self.enable_api_security = enable_api_security
         self.enable_dast = enable_dast
         self.enable_supply_chain = enable_supply_chain
@@ -553,6 +555,16 @@ class HybridSecurityAnalyzer:
             except (ImportError, RuntimeError) as e:
                 logger.warning(f"⚠️  Workflow hardening scanner not available: {e}")
                 self.enable_workflow_hardening = False
+        if self.enable_agent_config:
+            try:
+                from agent_config_scanner import AgentConfigScanner
+
+                self.agent_config_scanner = AgentConfigScanner()
+                logger.info("✅ Agent config secret scanner initialized")
+            except (ImportError, RuntimeError) as e:
+                logger.warning(f"⚠️  Agent config scanner not available: {e}")
+                self.enable_agent_config = False
+
         if self.enable_api_security:
             try:
                 from api_security_scanner import APISecurityScanner
@@ -1377,6 +1389,11 @@ class HybridSecurityAnalyzer:
         from hybrid.scanner_runners import run_workflow_hardening
 
         return run_workflow_hardening(self.workflow_hardening_scanner, target_path, logger)
+
+    def _run_agent_config(self, target_path: str) -> list[HybridFinding]:
+        from hybrid.scanner_runners import run_agent_config
+
+        return run_agent_config(self.agent_config_scanner, target_path, logger)
 
     def _run_api_security(self, target_path: str) -> list[HybridFinding]:
         from hybrid.scanner_runners import run_api_security

@@ -76,6 +76,13 @@ def main():
         default=None,
         help="Enable CI/CD workflow hardening scan (pinned actions, pwn-request, permissions)",
     )
+
+    parser.add_argument(
+        "--enable-agent-config",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Enable AI agent config secret scan (.claude/settings*.json, .cursor, .gemini)",
+    )
     
     parser.add_argument(
         "--enable-trufflehog",
@@ -250,6 +257,9 @@ def main():
     enable_workflow_hardening = _resolve_flag(
         args.enable_workflow_hardening, "ENABLE_WORKFLOW_HARDENING", "enable_workflow_hardening"
     )
+    enable_agent_config = _resolve_flag(
+        args.enable_agent_config, "ENABLE_AGENT_CONFIG", "enable_agent_config"
+    )
     enable_trufflehog = _resolve_flag(args.enable_trufflehog, "ENABLE_TRUFFLEHOG", "enable_trufflehog")
     enable_gitleaks = _resolve_flag(args.enable_gitleaks, "ENABLE_GITLEAKS", "enable_gitleaks")
     enable_api_security = _resolve_flag(args.enable_api_security, "ENABLE_API_SECURITY", "enable_api_security")
@@ -368,6 +378,7 @@ def main():
             enable_trivy=enable_trivy,
             enable_checkov=enable_checkov,
             enable_workflow_hardening=enable_workflow_hardening,
+            enable_agent_config=enable_agent_config,
             enable_api_security=enable_api_security,
             enable_dast=enable_dast,
             enable_supply_chain=enable_supply_chain,
