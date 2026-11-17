@@ -19,6 +19,7 @@ from typing import Any
 
 from hybrid.models import HybridFinding
 from hybrid.scanner_runners import checked_findings
+from scanners.supply_chain_stealer import scan_supply_chain_stealer
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +57,28 @@ def run_phase1_scanning(
     # Scanner health tracks status for every known scanner.
     # Pre-populate with the scanners and their enable/init flags so that
     # scanners that are skipped get marked "disabled" without extra logic.
+    # --- MANUAL EXECUTION OF CUSTOM SCANNERS ---
+    
+    # 1. Supply Chain Stealer
+    try:
+        sc_raw = scan_supply_chain_stealer(target_path)
+        for item in sc_raw:
+            # Convert raw dict to HybridFinding
+            f = HybridFinding(
+                repo=target_path,
+                tool=item.get("tool", "Supply-Chain"),
+                severity=item.get("severity", "HIGH"),
+                title=item.get("title", "Unknown"),
+                description=item.get("description", ""),
+                file=item.get("file", ""),
+                recommendation=item.get("recommendation", "")
+            )
+            all_findings.append(f)
+        logger.info(f"   🚨 Supply Chain Scanner found {len(sc_raw)} indicators.")
+    except Exception as e:
+        logger.warning(f"   ⚠️ Supply Chain Scanner failed: {e}")
+
+
     _scanner_flags: list[tuple[str, bool, bool]] = [
         ("Semgrep", getattr(analyzer, "enable_semgrep", False), getattr(analyzer, "semgrep_scanner", None) is not None),
         (

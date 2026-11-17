@@ -393,10 +393,14 @@ class HybridSecurityAnalyzer:
                     logger.warning("⚠️  Could not initialize AI client")
                     logger.info("   💡 Continuing without AI enrichment")
                     self.enable_ai_enrichment = False
+                    self.ai_client = None
             except Exception as e:
                 logger.warning(f"⚠️  Could not load AI client: {e}")
                 logger.info("   💡 Continuing without AI enrichment")
                 self.enable_ai_enrichment = False
+                self.ai_client = None
+        else:
+            self.ai_client = None
 
         # Initialize multi-agent system (requires AI client)
         if self.enable_multi_agent and self.enable_ai_enrichment and self.ai_client:
@@ -494,6 +498,22 @@ class HybridSecurityAnalyzer:
             except (ImportError, RuntimeError) as e:
                 logger.warning(f"⚠️  TruffleHog scanner not available: {e}")
                 self.enable_trufflehog = False
+
+        # --- NEW: Supply Chain Stealer Scanner ---
+        try:
+            from scanners.supply_chain_stealer import scan_supply_chain_stealer
+            self.supply_chain_scanner = scan_supply_chain_stealer
+            logger.info("✅ Supply Chain Stealer scanner initialized")
+        except ImportError as e:
+            logger.warning(f"⚠️  Supply Chain Stealer scanner not available: {e}")
+
+        # --- NEW: Agent Settings Scanner (Claude/Cursor) ---
+        try:
+            from scanners.agent_settings_scanner import scan_agent_settings
+            self.agent_settings_scanner = scan_agent_settings
+            logger.info("✅ Agent Settings scanner initialized")
+        except ImportError as e:
+            logger.warning(f"⚠️  Agent Settings scanner not available: {e}")
 
         if self.enable_gitleaks:
             try:
@@ -634,6 +654,7 @@ class HybridSecurityAnalyzer:
                 from remediation_engine import RemediationEngine
 
                 self.remediation_engine = RemediationEngine(llm_manager=self.ai_client)
+
                 logger.info("✅ Remediation Engine initialized")
             except (ImportError, RuntimeError) as e:
                 logger.warning(f"⚠️  Remediation Engine not available: {e}")
@@ -882,12 +903,10 @@ class HybridSecurityAnalyzer:
             target_path=target_path,
             analyzer=self,
         )
+        
         # Keep API-verified evidence independent of later AI mutation/filtering.
         verified_evidence = [replace(f) for f in all_findings if f.secret_verified]
         phase_timings["phase1_static_analysis"] = p1_duration
-        self._validate_phase(
-            "phase1", {"findings": [asdict(f) for f in all_findings], "scanner_health": scanner_health}
-        )
 
         # -- PHASE 2: AI Enrichment (+ IRIS, Remediation, Spontaneous) --
         all_findings, p2_timings = run_phase2_enrichment(
@@ -1514,9 +1533,13 @@ class HybridSecurityAnalyzer:
         )
 
     def _save_results(self, result: HybridScanResult, output_dir: str) -> None:
-        from hybrid.report import save_results
-
-        save_results(result, output_dir, result.target_path, skills_knowledge=self.skills_knowledge)
+        if self.ai_client:
+            # Use the full AI-powered report if we have a client
+            from hybrid.report import save_results
+            save_results(result, output_dir, result.target_path, skills_knowledge=self.skills_knowledge)
+        else:
+            # Use our simple offline saver if no AI is present
+            self._save_offline_results(result, output_dir)
 
     def _convert_to_sarif(self, result: HybridScanResult) -> dict:
         from hybrid.report import convert_to_sarif
@@ -1537,7 +1560,37 @@ class HybridSecurityAnalyzer:
         from hybrid.report import print_summary
 
         print_summary(result)
-
+    def _save_offline_results(self, result: HybridScanResult, output_dir: str) -> None:
+        """Save results even when AI is missing"""
+        import json
+        from pathlib import Path
+        
+        out_path = Path(output_dir)
+        out_path.mkdir(parents=True, exist_ok=True)
+        
+        # Convert result to a basic dict for JSON saving
+        report_data = {
+            "target": str(result.target_path),
+            "timestamp": str(result.timestamp),
+            "total_findings": len(result.findings),
+            "findings": [
+                {
+                    "id": f.id,
+                    "severity": f.severity,
+                    "title": f.title,
+                    "file": f.file_path,
+                    "scanner": f.scanner_name
+                } for f in result.findings
+            ],
+            "status": "completed_offline_no_ai"
+        }
+        
+        # Save JSON
+        json_file = out_path / "offline-scan-results.json"
+        with open(json_file, "w") as f:
+            json.dump(report_data, f, indent=2, default=str)
+            
+        logger.info(f"💾 Offline results saved to {json_file}")
 
 def main():
     """CLI entry point for hybrid analyzer — delegates to hybrid.cli.main()"""

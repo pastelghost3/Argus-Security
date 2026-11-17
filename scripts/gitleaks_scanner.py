@@ -171,18 +171,15 @@ class GitleaksScanner:
         if scan_type == "git":
             cmd.append("git")
         else:
-            cmd.append("dir")
+            cmd.append("detect")
 
         # JSON report to stdout
-        cmd.extend(["--report-format", "json"])
-        cmd.extend(["--report-path", "/dev/stdout"])
+        cmd.extend(["--report-format", "json", "--no-banner", "--report-path", "/dev/stdout"])
 
-        # Verbose for better logging
-        cmd.append("--verbose")
 
         # Source path as positional argument (--source and --no-git removed in gitleaks v8.21+)
-        # The "dir" subcommand already scans filesystem without git history
-        cmd.append(str(target))
+        # The "detect" subcommand already scans filesystem without git history
+        cmd.extend(["--source", str(target)])
 
         # Depth limit for git scans
         if self.scan_depth and scan_type == "git":

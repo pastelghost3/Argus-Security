@@ -392,7 +392,7 @@ class CheckovScanner:
         Returns:
             Command as list of strings
         """
-        cmd = ["checkov"]
+        cmd = [os.environ.get("CHECKOV_BIN") or os.path.expanduser("~/.venvs/checkov/bin/checkov")]
 
         # Target type - detect if file by existence or extension
         path = Path(target_path)

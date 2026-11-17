@@ -14,6 +14,7 @@ import json
 import logging
 import shutil
 import subprocess
+from resource_paths import resource_root
 import sys
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
@@ -57,7 +58,7 @@ class SemgrepScanner:
                 - exclude_patterns: Patterns to exclude
         """
         self.config = config or {}
-        self.semgrep_rules = self.config.get("semgrep_rules", "auto")
+        self.semgrep_rules = self.config.get("semgrep_rules") or str(resource_root() / "rules" / "custom")
         self.languages = self.config.get("languages", [])
         self.exclude_patterns = self.config.get(
             "exclude_patterns",
