@@ -84,16 +84,19 @@ class SemgrepScanner:
         if bin_path:
             return bin_path
 
-        # 2. Fallback: common install locations not always on PATH in containers
-        for candidate in [
+        # 2. Fallback: common install locations not always on PATH.
+        #    Do NOT include /root/* — it's unreadable for non-root users and
+        #    Path.is_file() returns True on unreadable files, causing EACCES
+        #    when the subprocess tries to execute them.
+        candidates = [
+            str(Path.home() / ".local" / "bin" / "semgrep"),
             "/usr/local/bin/semgrep",
             "/usr/bin/semgrep",
             "/opt/homebrew/bin/semgrep",
-            "/home/agentuser/.local/bin/semgrep",
-            "/root/.local/bin/semgrep",
-            str(Path.home() / ".local" / "bin" / "semgrep"),
-        ]:
-            if Path(candidate).is_file():
+        ]
+        for candidate in candidates:
+            path = Path(candidate)
+            if path.is_file() and os.access(candidate, os.X_OK):
                 return candidate
 
         # 3. Last resort: try python -m semgrep (works when pip-installed but
