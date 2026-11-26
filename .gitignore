@@ -107,3 +107,4 @@ copilot-cli-scan-results/
 *.docx
 *.xlsx
 *.pptx
+scripts/hybrid/phases/phase1_scanning.py.bak.*
